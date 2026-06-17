@@ -1,0 +1,69 @@
+# Keep the build context (and image) small and secret-free.
+.git/
+.gitignore
+
+# Secrets — never copy into the image; pass at runtime instead.
+.env
+.env.*
+
+# Virtual environments
+.venv/
+.venv-broken/
+venv/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pycache_temp/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+
+# Run logs (regenerated at runtime)
+logs/
+
+# Tests and dev-only deps (not needed in the runtime image)
+tests/
+conftest.py
+requirements-dev.txt
+
+# Research scratch / scraped data artifacts and one-off scripts
+*_sections.json
+*_browser_sections.json
+*_browser_extract.json
+*_section_dump.txt
+*_rows.json
+*_input_rows.json
+*.csv
+*.xlsx
+*.xls
+*.pdf
+amazon_pages/
+amazon_pages_black_seed/
+black_seed_oilthymo2_pages/
+black_seed_thymo2_pages/
+combined_matching_pages/
+liposomal_vitc_pages/
+claimwise_visualization_previews/
+outputs/
+test_datasets/
+build_*.py
+extract_*.py
+fetch_*.ps1
+inspect_*.py
+prepare_*.py
+scrape_*.py
+add_*.py
+
+# Archived legacy prototypes
+archive/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

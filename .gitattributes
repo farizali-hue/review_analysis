@@ -1,0 +1,9 @@
+# Normalize line endings to LF in the repo (the app runs in a Linux container).
+* text=auto eol=lf
+
+# Binary/data formats Git should not touch.
+*.xlsx binary
+*.xls binary
+*.pdf binary
+*.png binary
+*.jpg binary

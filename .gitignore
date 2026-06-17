@@ -1,0 +1,49 @@
+# ── Secrets ───────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+
+# ── Virtual environments ──────────────────────────────────────────────────
+.venv/
+.venv-broken/
+venv/
+env/
+
+# ── Python caches ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pycache_temp/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# ── Node ──────────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Run logs ──────────────────────────────────────────────────────────────
+logs/
+
+# ── Local data & scraped artifacts (research scratch, not app code) ───────
+*_sections.json
+*_browser_sections.json
+*_browser_extract.json
+*_section_dump.txt
+*_rows.json
+*_input_rows.json
+amazon_pages/
+amazon_pages_black_seed/
+black_seed_oilthymo2_pages/
+black_seed_thymo2_pages/
+combined_matching_pages/
+liposomal_vitc_pages/
+claimwise_visualization_previews/
+outputs/
+test_datasets/
+
+# ── OS / editor cruft ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

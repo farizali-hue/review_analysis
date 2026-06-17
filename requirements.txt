@@ -1,0 +1,8 @@
+# Runtime dependencies, pinned for reproducible builds (versions match the working .venv).
+# Bump deliberately and re-test before deploying. Dev/test deps live in requirements-dev.txt.
+streamlit==1.56.0
+openai==2.31.0
+pandas==3.0.2
+openpyxl==3.1.5
+python-dotenv==1.2.2
+xlrd==2.0.2
