@@ -12,7 +12,7 @@ This repository uses `agent-skills` as a Codex workflow layer, not as an applica
 
 - Primary app entrypoint: `review_classifier_python.py`
 - Pure/testable logic module: `review_classifier_core.py` (imported by the entrypoint; covered by `tests/`)
-- Legacy prototypes moved to `archive/` (`streamlit_app.py`, `neg_issue.py`, `review_classifier_python_v1.py`) — kept for reference, not part of the app
+- Legacy prototypes (`streamlit_app.py`, `neg_issue.py`, `review_classifier_python_v1.py`) were removed from the working tree; recoverable from git history (initial commit) if needed
 - Runtime shape: Streamlit review-classification app with file upload/download, OpenAI API calls, `.env`-based local configuration, and local run logs under `logs/`
 - Deployment target: internal server running the Streamlit app as a service
 

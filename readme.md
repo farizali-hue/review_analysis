@@ -171,4 +171,4 @@ your-folder/
 └── readme.md                     # This file
 ```
 
-> Note: earlier prototypes (`streamlit_app.py`, `neg_issue.py`, `review_classifier_python_v1.py`) live under `archive/` for reference and are not part of the app.
+> Note: earlier prototypes (`streamlit_app.py`, `neg_issue.py`, `review_classifier_python_v1.py`) were removed from the working tree; they remain in git history (initial commit) if ever needed.
