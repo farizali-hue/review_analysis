@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from review_classifier_core import (
     DEFAULT_RATING_SCOPE,
     DEFAULT_SEVERITY,
+    GENERIC_CATEGORY_LABELS,
     NO_COMPLAINT_LABEL,
     RATING_SCOPES,
     SEVERITY_NONE,
@@ -25,10 +26,12 @@ from review_classifier_core import (
     format_review_window_label,
     get_upload_extension,
     is_csv_upload,
+    is_vague_category_label,
     load_excel_sheet,
     normalize_severity,
     pack_prompt_items,
     resolve_model_token_limits,
+    sanitize_category_label,
 )
 
 load_dotenv()  # loads variables from .env file into environment
@@ -70,15 +73,6 @@ MODEL_PRICING_PER_1M = {
     "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
     "gpt-5.4-mini": {"input": 0.75, "output": 4.50},
     "gpt-5.4-nano": {"input": 0.20, "output": 1.25},
-}
-GENERIC_CATEGORY_LABELS = {
-    "no issue",
-    "no dominant issue",
-    "other",
-    "misc",
-    "miscellaneous",
-    "uncategorized",
-    "general complaint",
 }
 DISCOVERY_MODEL_LIMITS = resolve_model_token_limits(DISCOVERY_MODEL)
 CLASSIFICATION_MODEL_LIMITS = resolve_model_token_limits(CLASSIFY_MODEL)
@@ -649,7 +643,7 @@ def classify_batch(client, prompt_text, batch_size, log_state=None, stage_name="
             item_index = int(item.get("index"))
         except (TypeError, ValueError):
             continue
-        category = clean_category_label(item.get("category"))
+        category = sanitize_category_label(item.get("category"))
         severity = normalize_severity(item.get("severity"))
         if category.lower() == NO_COMPLAINT_LABEL.lower():
             category = NO_COMPLAINT_LABEL
@@ -767,10 +761,15 @@ Category evidence:
         for item in parsed.get("mappings", [])
         if isinstance(item, dict) and clean_text(item.get("source")) and clean_text(item.get("target"))
     }
+    # Only genuinely vague buckets may be dissolved and reclassified. The model
+    # tends to over-flag concrete categories (e.g. "Stomach Pain") here, which
+    # then get force-fit into the wrong surviving category — so guard in code.
     reclassify_categories = [
         clean_category_label(label)
         for label in parsed.get("reclassify_categories", [])
-        if clean_text(label) and clean_category_label(label) != NO_COMPLAINT_LABEL
+        if clean_text(label)
+        and clean_category_label(label) != NO_COMPLAINT_LABEL
+        and is_vague_category_label(label)
     ]
 
     existing_categories = [clean_category_label(cat) for cat in results_df["Issue_Category"].dropna().unique()]

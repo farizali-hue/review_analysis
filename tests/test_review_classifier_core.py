@@ -10,11 +10,13 @@ from review_classifier_core import (
     estimate_input_tokens,
     filter_reviews_by_scope,
     is_csv_upload,
+    is_vague_category_label,
     load_excel_sheet,
     normalize_severity,
     normalize_spreadsheet_dataframe,
     pack_prompt_items,
     resolve_model_token_limits,
+    sanitize_category_label,
 )
 
 
@@ -173,6 +175,24 @@ def test_normalize_severity_falls_back_for_unknown_or_empty_values():
     assert normalize_severity("") == "Medium"
     assert normalize_severity("catastrophic") == "Medium"
     assert normalize_severity(None) == "Medium"
+
+
+def test_is_vague_category_label_flags_generic_buckets_only():
+    assert is_vague_category_label("Other") is True
+    assert is_vague_category_label("  misc ") is True
+    assert is_vague_category_label("Stomach Pain") is False
+    assert is_vague_category_label("No Complaint") is False
+
+
+def test_sanitize_category_label_rejects_severity_tokens():
+    assert sanitize_category_label("High") == "Needs Review"
+    assert sanitize_category_label("none") == "Needs Review"
+    assert sanitize_category_label("Low", fallback="Unmapped") == "Unmapped"
+
+
+def test_sanitize_category_label_keeps_real_categories():
+    assert sanitize_category_label("Stomach Pain") == "Stomach Pain"
+    assert sanitize_category_label("No Complaint") == "No Complaint"
 
 
 def test_is_csv_upload_handles_uppercase_extensions():

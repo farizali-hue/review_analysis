@@ -45,6 +45,23 @@ RATING_SCOPES = {
 }
 DEFAULT_RATING_SCOPE = "below_4"
 
+# Vague labels that are not real complaint categories. Only these may be sent
+# back for reclassification during consolidation — concrete categories like
+# "Stomach Pain" must never be dissolved.
+GENERIC_CATEGORY_LABELS = {
+    "no issue",
+    "no dominant issue",
+    "other",
+    "misc",
+    "miscellaneous",
+    "uncategorized",
+    "general complaint",
+}
+
+# A severity token must never end up as a category label (the model sometimes
+# leaks the severity value, e.g. category="High").
+SEVERITY_TOKENS = {level.lower() for level in SEVERITY_LEVELS} | {SEVERITY_NONE.lower()}
+
 
 def clean_text(value: Any, fallback: str = "") -> str:
     if value is None:
@@ -66,6 +83,23 @@ def clean_category_label(label: Any, fallback: str = "Needs Review") -> str:
     text = clean_text(label, fallback="")
     text = text.strip(" '\"`")
     return text or fallback
+
+
+def is_vague_category_label(label: Any) -> bool:
+    """True if a label is a generic/vague bucket (e.g. 'Other', 'Misc')."""
+    return clean_text(label, fallback="").lower() in GENERIC_CATEGORY_LABELS
+
+
+def sanitize_category_label(label: Any, fallback: str = "Needs Review") -> str:
+    """Clean a model-provided category and reject severity tokens leaking in.
+
+    The model occasionally returns a severity word (e.g. 'High') as the
+    category; such values are not real categories and fall back instead.
+    """
+    text = clean_category_label(label, fallback=fallback)
+    if text.strip().lower() in SEVERITY_TOKENS:
+        return fallback
+    return text
 
 
 def filter_reviews_by_scope(
