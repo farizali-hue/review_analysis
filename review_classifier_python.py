@@ -21,6 +21,7 @@ from review_classifier_core import (
     clean_text,
     compute_safe_context_budget,
     clear_stale_results,
+    couple_category_severity,
     detect_encoding,
     estimate_input_tokens,
     filter_reviews_by_scope,
@@ -655,9 +656,10 @@ def classify_batch(client, prompt_text, batch_size, log_state=None, stage_name="
             continue
         category = sanitize_category_label(item.get("category"))
         severity = normalize_severity(item.get("severity"))
-        if category.lower() == NO_COMPLAINT_LABEL.lower():
-            category = NO_COMPLAINT_LABEL
-            severity = SEVERITY_NONE
+        # Enforce the No Complaint <-> None invariant in both directions: a None
+        # severity means the review had no real complaint, so it is not tagged
+        # with a leftover topic category.
+        category, severity = couple_category_severity(category, severity)
         normalized.append(
             {
                 "index": item_index,
@@ -1255,7 +1257,11 @@ if st.button("🤖 Start Classification", use_container_width=True):
 
     results_df["Issue_Category"] = results_df["Issue_Category"].apply(clean_category_label)
     results_df["Severity"] = results_df["Severity"].apply(normalize_severity)
+    # Final enforcement of the No Complaint <-> None invariant in both directions
+    # (see couple_category_severity): No Complaint has no severity, and a None
+    # severity means there was no complaint to categorize.
     results_df.loc[results_df["Issue_Category"] == NO_COMPLAINT_LABEL, "Severity"] = SEVERITY_NONE
+    results_df.loc[results_df["Severity"] == SEVERITY_NONE, "Issue_Category"] = NO_COMPLAINT_LABEL
     results_df["Justification"] = results_df["Justification"].apply(
         lambda value: clean_text(value, fallback="Needs review")
     )

@@ -8,6 +8,7 @@ from review_classifier_core import (
     clean_text,
     compute_safe_context_budget,
     clear_stale_results,
+    couple_category_severity,
     detect_encoding,
     estimate_input_tokens,
     filter_reviews_by_scope,
@@ -215,6 +216,25 @@ def test_sanitize_category_label_rejects_severity_tokens():
 def test_sanitize_category_label_keeps_real_categories():
     assert sanitize_category_label("Stomach Pain") == "Stomach Pain"
     assert sanitize_category_label("No Complaint") == "No Complaint"
+
+
+def test_couple_category_severity_demotes_severity_none_to_no_complaint():
+    # Reverse coupling: a positive review tagged with a topic category but no
+    # severity is not a complaint (the bug seen at scale in real outputs).
+    assert couple_category_severity("Hair Growth", "None") == ("No Complaint", "None")
+    assert couple_category_severity("Prostate Support", "none") == ("No Complaint", "None")
+
+
+def test_couple_category_severity_strips_severity_from_no_complaint():
+    # Forward coupling: a No Complaint row never carries a severity.
+    assert couple_category_severity("No Complaint", "Medium") == ("No Complaint", "None")
+    assert couple_category_severity("no complaint", "High") == ("No Complaint", "None")
+
+
+def test_couple_category_severity_leaves_real_complaints_untouched():
+    assert couple_category_severity("Stomach Pain", "High") == ("Stomach Pain", "High")
+    assert couple_category_severity("High Price", "Low") == ("High Price", "Low")
+    assert couple_category_severity("No Complaint", "None") == ("No Complaint", "None")
 
 
 def test_sanitize_csv_field_neutralizes_formula_leading_chars():

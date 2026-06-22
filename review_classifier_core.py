@@ -160,6 +160,24 @@ def normalize_severity(value: Any, fallback: str = DEFAULT_SEVERITY) -> str:
     return canonical.get(text, fallback)
 
 
+def couple_category_severity(category: Any, severity: Any) -> tuple[str, str]:
+    """Enforce the "No Complaint" <-> "None" invariant in both directions.
+
+    Forward: a "No Complaint" row never carries a severity, so severity becomes
+    "None". Reverse: a row with "None" severity has no complaint, so the category
+    becomes "No Complaint" — positive reviews are sometimes tagged with a topic
+    category (e.g. "Hair Growth") yet a "None" severity, which is not a complaint.
+
+    Inputs are expected to already be cleaned/normalized (see clean_category_label
+    and normalize_severity). Returns the corrected (category, severity) pair.
+    """
+    no_complaint = str(category).strip().lower() == NO_COMPLAINT_LABEL.lower()
+    no_severity = str(severity).strip().lower() == SEVERITY_NONE.lower()
+    if no_complaint or no_severity:
+        return NO_COMPLAINT_LABEL, SEVERITY_NONE
+    return str(category), str(severity)
+
+
 def estimate_input_tokens(text: str, chars_per_token: int = CHARS_PER_TOKEN_ESTIMATE) -> int:
     if chars_per_token <= 0:
         raise ValueError("chars_per_token must be greater than zero.")
