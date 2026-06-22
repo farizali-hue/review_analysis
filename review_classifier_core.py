@@ -219,17 +219,36 @@ def pack_prompt_items(
     return selected_items, prompt, estimate_input_tokens(prompt)
 
 
+def format_rating_value(value: Any) -> str:
+    """Render a star rating compactly (5, not 5.0). Empty string if missing."""
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except TypeError:
+        pass
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return clean_text(value)
+    return str(int(numeric)) if numeric == int(numeric) else str(numeric)
+
+
 def build_review_block(
     record: dict[str, Any],
     index: int,
     title_col: str | None,
     body_col: str,
+    rating_col: str | None = None,
 ) -> str:
     title = clean_text(record.get(title_col, "")) if title_col else ""
     body = clean_text(record.get(body_col, ""))
+    rating = format_rating_value(record.get(rating_col)) if rating_col else ""
+    prefix = f"{index}. [{rating} stars]" if rating else f"{index}."
     if title:
-        return f"{index}. Title: {title}\n   Review: {body}"
-    return f"{index}. Review: {body}"
+        return f"{prefix} Title: {title}\n   Review: {body}"
+    return f"{prefix} Review: {body}"
 
 
 def get_upload_extension(filename: str | None) -> str:

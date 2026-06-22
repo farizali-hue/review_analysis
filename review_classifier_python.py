@@ -469,11 +469,11 @@ Reviews:
 """
 
 
-def prepare_discovery_request(reviews, title_col, body_col):
+def prepare_discovery_request(reviews, title_col, body_col, rating_col=None):
     """Fit the representative sample into a safe context window without truncating reviews."""
     selected_reviews, prompt, estimated_input_tokens = pack_prompt_items(
         reviews,
-        format_item=lambda review, idx: build_review_block(review, idx, title_col, body_col),
+        format_item=lambda review, idx: build_review_block(review, idx, title_col, body_col, rating_col),
         prompt_prefix=build_discovery_prompt_prefix(),
         prompt_suffix="",
         reserved_output_tokens=DISCOVERY_RESERVED_OUTPUT_TOKENS,
@@ -586,11 +586,11 @@ Reviews:
 """
 
 
-def prepare_classification_batch(records, categories, title_col, body_col, allow_new_category=True):
+def prepare_classification_batch(records, categories, title_col, body_col, allow_new_category=True, rating_col=None):
     """Build the largest batch that fits under the safe context budget."""
     selected_records, prompt, estimated_input_tokens = pack_prompt_items(
         records,
-        format_item=lambda review, idx: build_review_block(review, idx, title_col, body_col),
+        format_item=lambda review, idx: build_review_block(review, idx, title_col, body_col, rating_col),
         prompt_prefix=build_classification_prompt_prefix(categories, allow_new_category),
         prompt_suffix="",
         reserved_output_tokens=classification_reserved_output_tokens,
@@ -800,7 +800,7 @@ def apply_category_mapping(results_df, mapping):
     )
     return mapped_df
 
-def reclassify_mixed_categories(client, results_df, categories_to_reclassify, categories, title_col, body_col, log_state=None):
+def reclassify_mixed_categories(client, results_df, categories_to_reclassify, categories, title_col, body_col, log_state=None, rating_col=None):
     """Reclassify rows that landed in vague or internally mixed labels."""
     categories_to_reclassify = {
         clean_category_label(category)
@@ -839,6 +839,7 @@ def reclassify_mixed_categories(client, results_df, categories_to_reclassify, ca
                 title_col,
                 body_col,
                 allow_new_category=False,
+                rating_col=rating_col,
             )
             batch = prepared_batch["records"]
             parsed = classify_batch(
@@ -1063,6 +1064,7 @@ if st.button("🤖 Start Classification", use_container_width=True):
                 discovery_records,
                 effective_title_col,
                 body_col,
+                rating_col=rating_col,
             )
             categories = discover_categories(
                 client,
@@ -1106,6 +1108,7 @@ if st.button("🤖 Start Classification", use_container_width=True):
                 categories,
                 effective_title_col,
                 body_col,
+                rating_col=rating_col,
             )
             batch = prepared_batch["records"]
             start = processed
@@ -1205,6 +1208,7 @@ if st.button("🤖 Start Classification", use_container_width=True):
                     effective_title_col,
                     body_col,
                     log_state=run_log,
+                    rating_col=rating_col,
                 )
                 if run_log.get("budget_reached"):
                     stop_for_budget(run_log)

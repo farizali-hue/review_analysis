@@ -93,6 +93,24 @@ def test_build_review_block_preserves_full_review_text():
     assert "Review: " + ("B" * 40) in block
 
 
+def test_build_review_block_includes_compact_rating_when_given():
+    record = {"title": "Good", "body": "Works well", "Rating": 5.0}
+
+    block = build_review_block(record, index=1, title_col="title", body_col="body", rating_col="Rating")
+
+    assert "[5 stars]" in block
+    assert "5.0" not in block
+    assert "Review: Works well" in block
+
+
+def test_build_review_block_omits_rating_when_absent():
+    record = {"title": "Good", "body": "Works well"}
+
+    block = build_review_block(record, index=1, title_col="title", body_col="body", rating_col="Rating")
+
+    assert "stars" not in block
+
+
 def test_estimate_input_tokens_rounds_up_character_groups():
     assert estimate_input_tokens("abcd") == 1
     assert estimate_input_tokens("abcde") == 2
