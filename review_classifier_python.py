@@ -581,6 +581,7 @@ Category rules:
 - Do NOT use vague labels such as "No issue", "Other", "Misc", or "Uncategorized"; use "{NO_COMPLAINT_LABEL}" when there is genuinely nothing to complain about.
 - When a review contains more than one genuine complaint, classify the SINGLE most severe one (greatest safety, health, or financial impact), not the first mentioned.
 - When the review is genuinely mixed (clear praise plus a clear complaint), classify the complaint, not the praise.
+- A physical defect in the product itself (under-filled, empty, or broken capsules, a short count, or damaged packaging) is a product-quality problem, not a dosage problem, even when the reviewer also mentions the dose.
 - Merge complaint variants into the closest canonical issue when they mean the same thing.
 
 Severity rules:
@@ -751,6 +752,7 @@ Rules:
 - Keep final labels short, concrete, and standardized.
 - Do NOT keep vague labels such as "No issue", "No dominant issue", "Other", "Misc", or "Uncategorized" unless the evidence truly shows no complaint.
 - If two labels describe the same underlying complaint, map both to one best canonical label.
+- Merge labels that describe the same problem family even when the wording differs, including opposite-direction phrasings of one topic (for example "Hair Loss" and "Hair Growth" into one hair label) and physical product-quality defects (for example under-filled or empty capsules, broken capsules, short count, and damaged packaging into one quality/manufacturing label).
 - If a label contains multiple different complaint families, do not force one mapping; send it to "reclassify_categories".
 - Respond using the provided JSON schema only.
 
