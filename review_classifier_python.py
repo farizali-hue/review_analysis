@@ -572,9 +572,15 @@ Category rules:
 - {category_rule}
 - Classify the complaint regardless of the review's language.
 - If the review has NO genuine complaint, assign the category "{NO_COMPLAINT_LABEL}". This includes reviews that are entirely positive, and reviews whose only "issue" is a neutral observation or is actually praise (for example "good quality for price" or "works but turns urine blue").
-- A 4 or 5 star review is usually "{NO_COMPLAINT_LABEL}" unless it explicitly states a real problem.
+- A 4 or 5 star review is usually "{NO_COMPLAINT_LABEL}" unless it explicitly states a real problem the reviewer experienced.
+- The following are NOT complaints; classify them as "{NO_COMPLAINT_LABEL}":
+  - merely naming a benefit or topic the product is for (for example "helps with circulation" or "good for hair growth");
+  - general advice or cautions that apply to anyone (for example "consult your doctor" or "if you are allergic to soy, do not take this") when the reviewer reports no problem of their own;
+  - a personal preference or routine rather than a defect (for example "I take only one capsule instead of two");
+  - a stated reason for buying, such as a bare answer to "Why did you pick this product?" (for example "Price" or "good value") — this means price was an attraction, not a complaint about high price.
 - Do NOT use vague labels such as "No issue", "Other", "Misc", or "Uncategorized"; use "{NO_COMPLAINT_LABEL}" when there is genuinely nothing to complain about.
-- Only when the review is genuinely mixed (clear praise plus a clear complaint), classify the complaint, not the praise.
+- When a review contains more than one genuine complaint, classify the SINGLE most severe one (greatest safety, health, or financial impact), not the first mentioned.
+- When the review is genuinely mixed (clear praise plus a clear complaint), classify the complaint, not the praise.
 - Merge complaint variants into the closest canonical issue when they mean the same thing.
 
 Severity rules:
