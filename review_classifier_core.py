@@ -251,6 +251,23 @@ def build_review_block(
     return f"{prefix} Review: {body}"
 
 
+CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def sanitize_csv_field(value: Any) -> Any:
+    """Neutralize CSV/formula injection in a single cell value.
+
+    Per OWASP CSV Injection guidance, a spreadsheet treats a cell beginning with
+    = + - @ (or tab/CR) as a formula. We prefix such cells with a single quote so
+    Excel/Calc render them as text. OWASP also documents a tab prefix; a quote is
+    used here so exported values stay readable. Note OWASP's caveat: no prefix is
+    guaranteed to survive a save-and-reopen in Excel.
+    """
+    if isinstance(value, str) and value[:1] in CSV_INJECTION_PREFIXES:
+        return "'" + value
+    return value
+
+
 def get_upload_extension(filename: str | None) -> str:
     return Path(filename or "").suffix.lower()
 

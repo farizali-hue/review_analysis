@@ -17,6 +17,7 @@ from review_classifier_core import (
     pack_prompt_items,
     resolve_model_token_limits,
     sanitize_category_label,
+    sanitize_csv_field,
 )
 
 
@@ -211,6 +212,19 @@ def test_sanitize_category_label_rejects_severity_tokens():
 def test_sanitize_category_label_keeps_real_categories():
     assert sanitize_category_label("Stomach Pain") == "Stomach Pain"
     assert sanitize_category_label("No Complaint") == "No Complaint"
+
+
+def test_sanitize_csv_field_neutralizes_formula_leading_chars():
+    assert sanitize_csv_field("=1+2") == "'=1+2"
+    assert sanitize_csv_field("@SUM(A1)") == "'@SUM(A1)"
+    assert sanitize_csv_field("-cmd|calc") == "'-cmd|calc"
+    assert sanitize_csv_field("+1") == "'+1"
+
+
+def test_sanitize_csv_field_leaves_safe_values_untouched():
+    assert sanitize_csv_field("Great product") == "Great product"
+    assert sanitize_csv_field("") == ""
+    assert sanitize_csv_field(5) == 5
 
 
 def test_is_csv_upload_handles_uppercase_extensions():

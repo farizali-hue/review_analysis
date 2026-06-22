@@ -32,6 +32,7 @@ from review_classifier_core import (
     pack_prompt_items,
     resolve_model_token_limits,
     sanitize_category_label,
+    sanitize_csv_field,
 )
 
 load_dotenv()  # loads variables from .env file into environment
@@ -1310,9 +1311,13 @@ if "results" in st.session_state:
         ] if c and c in result_df.columns]
         st.dataframe(result_df[display_cols], use_container_width=True)
 
-    # Export
+    # Export — sanitize against CSV/formula injection (OWASP) and add a UTF-8 BOM
+    # so Excel opens accented characters correctly.
     st.divider()
-    csv_bytes = result_df.to_csv(index=False).encode("utf-8")
+    export_df = result_df.copy()
+    for col in export_df.columns:
+        export_df[col] = export_df[col].map(sanitize_csv_field)
+    csv_bytes = export_df.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
         label="⬇️ Download Classified Reviews CSV",
         data=csv_bytes,
