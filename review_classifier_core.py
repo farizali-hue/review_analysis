@@ -8,6 +8,16 @@ from typing import Any, MutableMapping, TypeVar
 import pandas as pd
 import re
 
+try:  # optional: repairs mojibake like "MagnÃ­fico" -> "Magnífico"
+    from ftfy import fix_text as _ftfy_fix_text
+except ImportError:  # pragma: no cover - optional dependency
+    _ftfy_fix_text = None
+
+try:  # optional: detects the encoding of an uploaded byte stream
+    from charset_normalizer import from_bytes as _cn_from_bytes
+except ImportError:  # pragma: no cover - optional dependency
+    _cn_from_bytes = None
+
 CHARS_PER_TOKEN_ESTIMATE = 4
 DEFAULT_SAFE_CONTEXT_RATIO = 0.8
 FALLBACK_SAFE_CONTEXT_BUDGET = 24_000
@@ -63,6 +73,23 @@ GENERIC_CATEGORY_LABELS = {
 SEVERITY_TOKENS = {level.lower() for level in SEVERITY_LEVELS} | {SEVERITY_NONE.lower()}
 
 
+def fix_mojibake(text: str) -> str:
+    """Repair mis-decoded text (e.g. 'MagnÃ­fico' -> 'Magnífico') when ftfy is available."""
+    if _ftfy_fix_text is None or not text:
+        return text
+    return _ftfy_fix_text(text)
+
+
+def detect_encoding(data: bytes, fallback: str = "utf-8") -> str:
+    """Best-guess the text encoding of an uploaded byte stream."""
+    if not data or _cn_from_bytes is None:
+        return fallback
+    match = _cn_from_bytes(data).best()
+    if match is None or not match.encoding:
+        return fallback
+    return match.encoding
+
+
 def clean_text(value: Any, fallback: str = "") -> str:
     if value is None:
         return fallback
@@ -71,7 +98,7 @@ def clean_text(value: Any, fallback: str = "") -> str:
             return fallback
     except TypeError:
         pass
-    text = re.sub(r"\s+", " ", str(value)).strip()
+    text = re.sub(r"\s+", " ", fix_mojibake(str(value))).strip()
     return text or fallback
 
 

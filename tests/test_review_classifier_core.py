@@ -5,10 +5,13 @@ import pandas as pd
 from review_classifier_core import (
     build_results_context,
     build_review_block,
+    clean_text,
     compute_safe_context_budget,
     clear_stale_results,
+    detect_encoding,
     estimate_input_tokens,
     filter_reviews_by_scope,
+    fix_mojibake,
     is_csv_upload,
     is_vague_category_label,
     load_excel_sheet,
@@ -225,6 +228,25 @@ def test_sanitize_csv_field_leaves_safe_values_untouched():
     assert sanitize_csv_field("Great product") == "Great product"
     assert sanitize_csv_field("") == ""
     assert sanitize_csv_field(5) == 5
+
+
+def test_fix_mojibake_repairs_double_encoded_text():
+    mojibake = "Magnífico".encode("utf-8").decode("latin-1")
+    assert fix_mojibake(mojibake) == "Magnífico"
+
+
+def test_fix_mojibake_leaves_clean_text_untouched():
+    assert fix_mojibake("Good product") == "Good product"
+    assert fix_mojibake("") == ""
+
+
+def test_detect_encoding_falls_back_for_empty_input():
+    assert detect_encoding(b"") == "utf-8"
+
+
+def test_clean_text_repairs_mojibake_in_review_content():
+    mojibake = "Para mí no he notado nada".encode("utf-8").decode("latin-1")
+    assert clean_text(mojibake) == "Para mí no he notado nada"
 
 
 def test_is_csv_upload_handles_uppercase_extensions():

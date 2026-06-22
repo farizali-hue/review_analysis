@@ -21,8 +21,10 @@ from review_classifier_core import (
     clean_text,
     compute_safe_context_budget,
     clear_stale_results,
+    detect_encoding,
     estimate_input_tokens,
     filter_reviews_by_scope,
+    fix_mojibake,
     format_review_window_label,
     get_upload_extension,
     is_csv_upload,
@@ -909,7 +911,7 @@ try:
     sheet_name = None
 
     if is_csv_upload(uploaded.name):
-        df = pd.read_csv(io.BytesIO(file_bytes))
+        df = pd.read_csv(io.BytesIO(file_bytes), encoding=detect_encoding(file_bytes))
     else:
         excel_engine = "xlrd" if file_extension == ".xls" else None
         workbook = pd.ExcelFile(io.BytesIO(file_bytes), engine=excel_engine)
@@ -975,6 +977,12 @@ clear_stale_results(st.session_state, current_results_context)
 if body_col == "(select)" or rating_col == "(select)" or date_col == "(select)":
     st.warning("Please map the Review Body, Star Rating, and Review Date columns to continue.")
     st.stop()
+
+# Repair mojibake in the mapped text columns so both the model and the exported
+# CSV see clean text (e.g. "MagnÃ­fico" -> "Magnífico").
+for text_col in {body_col, title_col}:
+    if text_col in df.columns:
+        df[text_col] = df[text_col].map(lambda v: fix_mojibake(v) if isinstance(v, str) else v)
 
 # Filter to the selected review window, then keep reviews within the chosen rating scope
 try:
