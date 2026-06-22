@@ -453,6 +453,7 @@ def build_discovery_prompt_prefix():
 
 Read these customer reviews and identify the main complaint categories.
 Some reviews may be largely positive and contain little or no complaint; ignore pure praise and focus on the genuine complaints that appear.
+Reviews may be in any language; identify complaints regardless of language and name the categories in English.
 
 Goal:
 Create a short list of canonical issue categories that will be used later for row-by-row classification.
@@ -562,25 +563,31 @@ Available canonical categories:
 Task:
 For each review, assign the SINGLE best issue category, rate its severity, and write a short review-specific justification.
 
+Each review is prefixed with its star rating as "[N stars]". Reviews may be in any language.
+
 Category rules:
 - Choose exactly one dominant complaint category per review.
 - Use one of the available categories whenever possible.
 - {category_rule}
-- If the review contains NO genuine complaint (for example it is entirely positive praise), assign the category "{NO_COMPLAINT_LABEL}".
+- Classify the complaint regardless of the review's language.
+- If the review has NO genuine complaint, assign the category "{NO_COMPLAINT_LABEL}". This includes reviews that are entirely positive, and reviews whose only "issue" is a neutral observation or is actually praise (for example "good quality for price" or "works but turns urine blue").
+- A 4 or 5 star review is usually "{NO_COMPLAINT_LABEL}" unless it explicitly states a real problem.
 - Do NOT use vague labels such as "No issue", "Other", "Misc", or "Uncategorized"; use "{NO_COMPLAINT_LABEL}" when there is genuinely nothing to complain about.
-- If the review is mixed (praise plus a complaint), classify the complaint, not the praise.
+- Only when the review is genuinely mixed (clear praise plus a clear complaint), classify the complaint, not the praise.
 - Merge complaint variants into the closest canonical issue when they mean the same thing.
 
 Severity rules:
 - Rate how serious the complaint is for the customer: "High", "Medium", or "Low".
 - "High" = safety or health risk, product unusable, or significant harm or financial loss.
 - "Medium" = a real problem that meaningfully hurts the experience.
-- "Low" = a minor annoyance or nitpick. Complaints found inside 4-5 star reviews are usually "Low".
+- "Low" = a minor annoyance or nitpick.
+- Use the star rating as a signal: a complaint in a 1-2 star review is rarely "Low" (usually "Medium" or "High"); a complaint inside a 4-5 star review is usually "Low".
 - Use "None" only when the category is "{NO_COMPLAINT_LABEL}".
 
 Justification rules:
 - The justification must be specific to that review, not generic to the category.
 - The justification must be short: 2 to 6 words.
+- Always write the justification in English, even when the review is in another language.
 - It should describe the actual complaint mentioned in the review; for "{NO_COMPLAINT_LABEL}" use a short positive summary (for example "Happy with product").
 - Do not write full sentences.
 - Respond using the provided JSON schema only.
