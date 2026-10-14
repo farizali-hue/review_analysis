@@ -369,8 +369,8 @@ def compute_discovery_sample_size(total_rows: int) -> int:
     target = min(DISCOVERY_SAMPLE_MAX, target)
     return min(total_rows, target)
 
-def build_discovery_sample(df, rating_col, date_col):
-    """Create a representative stratified sample using Model, ASIN fallback, rating, and date buckets."""
+def build_discovery_sample(df, rating_col, date_col, brand_col=None):
+    """Create a representative stratified sample using brand (when mapped), Model, ASIN fallback, rating, and date buckets."""
     if df.empty:
         return df.copy()
 
@@ -393,8 +393,17 @@ def build_discovery_sample(df, rating_col, date_col):
     rating_bucket = sampled_df[rating_col].fillna("unknown").astype(str).str.strip()
     date_bucket = sampled_df[date_col].dt.to_period("M").astype(str).replace("NaT", "unknown-date")
 
+    if brand_col and brand_col in sampled_df.columns:
+        brand_bucket = sampled_df[brand_col].fillna("(no brand)").astype(str).str.strip()
+        brand_bucket = brand_bucket.mask(brand_bucket.eq(""), "(no brand)")
+    else:
+        brand_bucket = pd.Series("", index=sampled_df.index)
+
     sampled_df["_stratum"] = (
-        product_bucket.astype(str)
+        "brand="
+        + brand_bucket.astype(str)
+        + " | "
+        + product_bucket.astype(str)
         + " | rating="
         + rating_bucket.astype(str)
         + " | date="
@@ -464,6 +473,7 @@ Rules:
 - Use short, standardized category names.
 - Merge synonyms and near-duplicates into one canonical label.
 - Do NOT create vague labels such as "No issue", "No dominant issue", "Other", "Misc", "General complaint", or "Uncategorized".
+- Do NOT create positive, benefit, or outcome categories that name a desired result (for example "Energy Boost", "Hair Growth", "Better Sleep", "Improved Circulation", "Bladder Urgency"). The taxonomy is complaints only; a review reporting an achieved benefit is NOT a complaint. If a benefit area matters only because some reviewers say it did NOT work, name the category for that problem (for example "No Noticeable Effect"), never for the benefit.
 - Even if a review contains praise or mixed sentiment, focus on the main complaint if one is present.
 - Prefer concrete issue names such as "Bad Taste", "Poor Dissolvability", "No Noticeable Effect", "Poor Packaging", "Side Effects", "Overpriced", or "Bad Smell".
 - If multiple labels mean the same thing, choose one best canonical label only.
@@ -575,6 +585,7 @@ Category rules:
 - A 4 or 5 star review is usually "{NO_COMPLAINT_LABEL}" unless it explicitly states a real problem the reviewer experienced.
 - The following are NOT complaints; classify them as "{NO_COMPLAINT_LABEL}":
   - merely naming a benefit or topic the product is for (for example "helps with circulation" or "good for hair growth");
+  - reporting an achieved benefit or improvement the reviewer is happy about (for example "I have more energy", "my hair is growing fuller", "big difference in my urgency") — a realized positive outcome is not a complaint, even if a benefit-named category appears in the list above;
   - general advice or cautions that apply to anyone (for example "consult your doctor" or "if you are allergic to soy, do not take this") when the reviewer reports no problem of their own;
   - a personal preference or routine rather than a defect (for example "I take only one capsule instead of two");
   - a stated reason for buying, such as a bare answer to "Why did you pick this product?" (for example "Price" or "good value") — this means price was an attraction, not a complaint about high price.
@@ -947,7 +958,7 @@ st.subheader("Step 2 — Map Your Columns")
 
 cols = list(df.columns)
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     title_col = st.selectbox("📌 Review Title Column", options=["(none)"] + cols)
 with col2:
@@ -956,6 +967,16 @@ with col3:
     rating_col = st.selectbox("⭐ Star Rating Column", options=["(select)"] + cols)
 with col4:
     date_col = st.selectbox("📅 Review Date Column", options=["(select)"] + cols)
+with col5:
+    default_brand_idx = next(
+        (i + 1 for i, col in enumerate(cols) if col.strip().lower() == "brand_name"), 0
+    )
+    brand_col = st.selectbox(
+        "🏷️ Brand Column (optional)",
+        options=["(none)"] + cols,
+        index=default_brand_idx,
+        help="When mapped, the review window is applied per brand so no brand drops out entirely.",
+    )
 
 review_window_months = st.number_input(
     "Review window (months)",
@@ -963,7 +984,11 @@ review_window_months = st.number_input(
     max_value=120,
     value=12,
     step=1,
-    help="Keeps reviews from the latest review date in the sheet minus this many months.",
+    help=(
+        "Keeps reviews from the latest review date minus this many months. "
+        "With a Brand Column mapped, the window is anchored to each brand's own latest "
+        "review date; otherwise to the latest date in the whole sheet."
+    ),
 )
 review_window_label = format_review_window_label(review_window_months)
 
@@ -988,6 +1013,7 @@ current_results_context = build_results_context(
     date_col=date_col,
     review_window_months=review_window_months,
     rating_scope=rating_scope,
+    brand_col=brand_col,
 )
 clear_stale_results(st.session_state, current_results_context)
 
@@ -1001,7 +1027,9 @@ for text_col in {body_col, title_col}:
     if text_col in df.columns:
         df[text_col] = df[text_col].map(lambda v: fix_mojibake(v) if isinstance(v, str) else v)
 
-# Filter to the selected review window, then keep reviews within the chosen rating scope
+# Filter to the selected review window, then keep reviews within the chosen rating scope.
+# With a brand column mapped, the window is anchored per brand (each brand's own latest
+# review date minus the window) so brands with older reviews are not dropped wholesale.
 try:
     df[date_col] = pd.to_datetime(df[date_col], errors="coerce", utc=True).dt.tz_localize(None)
     latest_sheet_date = df[date_col].dropna().max()
@@ -1014,26 +1042,84 @@ try:
     cutoff_date = latest_sheet_date - pd.DateOffset(months=review_window_months)
     df[rating_col] = pd.to_numeric(df[rating_col], errors="coerce")
     all_reviews_df = df.reset_index(drop=True)
-    recent_df = all_reviews_df[
-        all_reviews_df[date_col].notna() & (all_reviews_df[date_col] >= cutoff_date)
-    ].reset_index(drop=True)
+
+    def normalize_brand_labels(values):
+        labels = values.fillna("(no brand)").astype(str).str.strip()
+        return labels.mask(labels.eq(""), "(no brand)")
+
+    per_brand = brand_col != "(none)"
+    if per_brand:
+        brand_series = normalize_brand_labels(all_reviews_df[brand_col])
+        brand_latest = (
+            all_reviews_df.groupby(brand_series)[date_col].max().dropna().dt.normalize()
+        )
+        brand_cutoff = brand_latest.apply(
+            lambda d: d - pd.DateOffset(months=review_window_months)
+        )
+        row_cutoff = brand_series.map(brand_cutoff)
+        window_mask = (
+            all_reviews_df[date_col].notna()
+            & row_cutoff.notna()
+            & (all_reviews_df[date_col] >= row_cutoff)
+        )
+    else:
+        window_mask = all_reviews_df[date_col].notna() & (
+            all_reviews_df[date_col] >= cutoff_date
+        )
+
+    recent_df = all_reviews_df[window_mask].reset_index(drop=True)
     selected_df = filter_reviews_by_scope(recent_df, rating_col, rating_scope).reset_index(drop=True)
 
     st.info(
         f"Using **{len(all_reviews_df):,} total reviews** from the selected sheet, regardless of verified purchase status."
     )
-    st.info(
-        f"Latest review date in the selected sheet is **{latest_sheet_date.date()}**."
-    )
-    st.info(
-        f"Keeping **{len(recent_df):,} reviews** dated between **{cutoff_date.date()}** and **{latest_sheet_date.date()}**."
-    )
+    if per_brand:
+        kept_per_brand = normalize_brand_labels(recent_df[brand_col]).value_counts()
+        scoped_per_brand = normalize_brand_labels(selected_df[brand_col]).value_counts()
+        brand_summary = pd.DataFrame(
+            {
+                "Brand": brand_latest.index,
+                "Latest review": brand_latest.dt.date.astype(str).values,
+                "Cutoff": brand_cutoff.dt.date.astype(str).values,
+                "Reviews kept": kept_per_brand.reindex(brand_latest.index, fill_value=0).values,
+                "In rating scope": scoped_per_brand.reindex(brand_latest.index, fill_value=0).values,
+            }
+        )
+        no_date_brands = sorted(set(brand_series.unique()) - set(brand_latest.index))
+        if no_date_brands:
+            brand_summary = pd.concat(
+                [
+                    brand_summary,
+                    pd.DataFrame(
+                        {
+                            "Brand": no_date_brands,
+                            "Latest review": "no valid dates",
+                            "Cutoff": "—",
+                            "Reviews kept": 0,
+                            "In rating scope": 0,
+                        }
+                    ),
+                ],
+                ignore_index=True,
+            )
+        st.info(
+            f"Keeping **{len(recent_df):,} reviews** using a per-brand **{review_window_label}** window "
+            f"anchored to each brand's latest review date."
+        )
+        st.dataframe(brand_summary, use_container_width=True, hide_index=True)
+    else:
+        st.info(
+            f"Latest review date in the selected sheet is **{latest_sheet_date.date()}**."
+        )
+        st.info(
+            f"Keeping **{len(recent_df):,} reviews** dated between **{cutoff_date.date()}** and **{latest_sheet_date.date()}**."
+        )
     st.info(
         f"Found **{len(selected_df):,} reviews** matching scope **{RATING_SCOPES[rating_scope]}** "
         f"within the selected **{review_window_label}** window."
     )
 except Exception as e:
-    st.error(f"Could not parse the date or rating column: {e}")
+    st.error(f"Could not parse the date, rating, or brand column: {e}")
     st.stop()
 
 if len(all_reviews_df) == 0:
@@ -1041,16 +1127,27 @@ if len(all_reviews_df) == 0:
     st.stop()
 
 if len(recent_df) == 0:
-    st.warning(
-        f"No reviews were found in the selected {review_window_label} window between {cutoff_date.date()} and {latest_sheet_date.date()}."
-    )
+    if per_brand:
+        st.warning(
+            f"No reviews were found in any brand's {review_window_label} window."
+        )
+    else:
+        st.warning(
+            f"No reviews were found in the selected {review_window_label} window between {cutoff_date.date()} and {latest_sheet_date.date()}."
+        )
     st.stop()
 
 if len(selected_df) == 0:
-    st.warning(
-        f"No reviews matching scope '{RATING_SCOPES[rating_scope]}' were found in the selected "
-        f"{review_window_label} window between {cutoff_date.date()} and {latest_sheet_date.date()}."
-    )
+    if per_brand:
+        st.warning(
+            f"No reviews matching scope '{RATING_SCOPES[rating_scope]}' were found in any brand's "
+            f"{review_window_label} window."
+        )
+    else:
+        st.warning(
+            f"No reviews matching scope '{RATING_SCOPES[rating_scope]}' were found in the selected "
+            f"{review_window_label} window between {cutoff_date.date()} and {latest_sheet_date.date()}."
+        )
     st.stop()
 
 with st.expander("Preview filtered reviews"):
@@ -1071,7 +1168,9 @@ if st.button("🤖 Start Classification", use_container_width=True):
     run_log = create_run_logger()
     st.session_state["run_log_path"] = run_log["path"]
     records = selected_df.to_dict("records")
-    discovery_sample_df = build_discovery_sample(selected_df, rating_col, date_col)
+    discovery_sample_df = build_discovery_sample(
+        selected_df, rating_col, date_col, brand_col=None if brand_col == "(none)" else brand_col
+    )
     discovery_records = discovery_sample_df.to_dict("records")
     append_run_log(
         run_log,

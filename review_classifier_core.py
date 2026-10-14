@@ -414,6 +414,7 @@ def build_results_context(
     date_col: str,
     review_window_months: int,
     rating_scope: str = DEFAULT_RATING_SCOPE,
+    brand_col: str = "(none)",
 ) -> dict[str, Any]:
     return {
         "file_name": upload_name,
@@ -425,6 +426,7 @@ def build_results_context(
         "date_col": date_col,
         "review_window_months": int(review_window_months),
         "rating_scope": rating_scope,
+        "brand_col": brand_col,
     }
 
 

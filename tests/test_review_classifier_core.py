@@ -86,6 +86,25 @@ def test_build_results_context_tracks_uploaded_file_contents_and_inputs():
     assert first != second
 
 
+def test_build_results_context_tracks_brand_column():
+    base_kwargs = dict(
+        upload_name="reviews.csv",
+        file_bytes=b"alpha",
+        sheet_name=None,
+        title_col="Title",
+        body_col="Body",
+        rating_col="Rating",
+        date_col="Date",
+        review_window_months=12,
+    )
+
+    unmapped = build_results_context(**base_kwargs)
+    mapped = build_results_context(**base_kwargs, brand_col="brand_name")
+
+    assert unmapped["brand_col"] == "(none)"
+    assert unmapped != mapped
+
+
 def test_build_review_block_preserves_full_review_text():
     record = {
         "title": "A" * 20,
